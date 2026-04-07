@@ -1,6 +1,6 @@
 import { FiltrosProducto, Producto, ProductosPaginados } from '@/types/producto'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.logickem.com/api'
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`
