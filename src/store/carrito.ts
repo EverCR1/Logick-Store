@@ -8,6 +8,7 @@ export interface ItemCarrito {
   precio: number
   imagen: string | null
   cantidad: number
+  stock: number   // máximo permitido
 }
 
 interface CarritoStore {
@@ -26,10 +27,12 @@ export const useCarrito = create<CarritoStore>()(
       items: [],
 
       agregar: (producto) => {
-        const items = get().items
+        const items  = get().items
         const existe = items.find((i) => i.id === producto.id)
+        const stock  = producto.stock ?? 99
 
         if (existe) {
+          if (existe.cantidad >= stock) return  // tope de stock
           set({
             items: items.map((i) =>
               i.id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i
@@ -45,6 +48,7 @@ export const useCarrito = create<CarritoStore>()(
                 precio:   producto.precio_final,
                 imagen:   producto.imagen_principal,
                 cantidad: 1,
+                stock,
               },
             ],
           })
@@ -59,9 +63,11 @@ export const useCarrito = create<CarritoStore>()(
           get().quitar(id)
           return
         }
+        const item = get().items.find((i) => i.id === id)
+        const tope = item?.stock ?? 99
         set({
           items: get().items.map((i) =>
-            i.id === id ? { ...i, cantidad } : i
+            i.id === id ? { ...i, cantidad: Math.min(cantidad, tope) } : i
           ),
         })
       },

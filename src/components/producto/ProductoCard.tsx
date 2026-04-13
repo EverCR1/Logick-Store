@@ -2,29 +2,44 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ShoppingCart, Plus, Minus, Star } from 'lucide-react'
 import { Producto } from '@/types/producto'
 import { useCarrito } from '@/store/carrito'
-import { formatPrecio, calcularDescuento } from '@/lib/utils'
+import { useFavorito } from '@/hooks/useFavorito'
+import { formatPrecio, calcularDescuento, toSlug, nombreConColor } from '@/lib/utils'
 
 interface Props {
   producto: Producto
 }
 
 export default function ProductoCard({ producto }: Props) {
-  const agregar = useCarrito((s) => s.agregar)
+  const agregar            = useCarrito((s) => s.agregar)
+  const actualizarCantidad = useCarrito((s) => s.actualizarCantidad)
+  const items              = useCarrito((s) => s.items)
 
   const agotado = !producto.disponible
+  const href    = `/productos/${toSlug(producto.nombre, producto.id)}`
+
+  const { esFavorito, toggle: toggleFav, isPending: favPending, autenticado } = useFavorito(producto.id)
+
+  // Evitar hydration mismatch con el carrito (localStorage)
+  const [montado, setMontado] = useState(false)
+  useEffect(() => setMontado(true), [])
+
+  const itemEnCarrito = montado ? items.find((i) => i.id === producto.id) : undefined
+  const cantidad      = itemEnCarrito?.cantidad ?? 0
+  const enTope        = cantidad >= producto.stock
 
   return (
-    <div className={`rounded-xl border shadow-sm flex flex-col group transition-shadow ${
+    <div className={`group flex flex-col rounded-2xl overflow-hidden transition-all duration-200 ${
       agotado
-        ? 'bg-gray-50 border-gray-200 opacity-75'
-        : 'bg-white border-gray-100 hover:shadow-md'
-    }`}>
+        ? 'bg-gray-50 opacity-70'
+        : 'bg-white hover:shadow-lg hover:-translate-y-0.5'
+    } shadow-sm`}>
 
       {/* Imagen */}
-      <Link href={`/productos/${producto.id}`} className="relative block aspect-square overflow-hidden rounded-t-xl bg-gray-100">
+      <Link href={href} className="relative block aspect-square overflow-hidden bg-gray-100">
         {producto.imagen_principal ? (
           <Image
             src={producto.imagen_principal}
@@ -36,47 +51,57 @@ export default function ProductoCard({ producto }: Props) {
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
             Sin imagen
           </div>
         )}
 
-        {/* Badge agotado */}
-        {agotado && (
-          <div className="absolute inset-0 flex items-end justify-center pb-3 rounded-t-xl">
-            <span className="bg-gray-800/80 text-white text-xs font-semibold px-3 py-1 rounded-full">
+        {/* Badges */}
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
+          {producto.en_oferta && !agotado && (
+            <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-tight">
+              -{calcularDescuento(producto.precio_venta, producto.precio_oferta!)}
+            </span>
+          )}
+          {agotado && (
+            <span className="bg-gray-700 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full leading-tight">
               Agotado
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Badge oferta */}
-        {producto.en_oferta && !agotado && (
-          <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-            -{calcularDescuento(producto.precio_venta, producto.precio_oferta!)}
-          </span>
+        {/* Botón favorito */}
+        {autenticado && (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); toggleFav() }}
+            disabled={favPending}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors disabled:opacity-60"
+          >
+            <Star className={`w-3.5 h-3.5 transition-colors ${esFavorito ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+          </button>
         )}
       </Link>
 
       {/* Info */}
-      <div className="flex flex-col flex-1 p-3 gap-2">
+      <div className="flex flex-col flex-1 px-3.5 py-3 gap-1.5">
         {producto.marca && (
-          <span className={`text-xs uppercase tracking-wide ${agotado ? 'text-gray-300' : 'text-gray-400'}`}>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
             {producto.marca}
           </span>
         )}
 
         <Link
-          href={`/productos/${producto.id}`}
-          className={`text-sm font-medium line-clamp-2 leading-snug ${
+          href={href}
+          className={`text-[13px] font-medium line-clamp-2 leading-snug ${
             agotado ? 'text-gray-400' : 'text-gray-800 hover:text-green-600'
           }`}
         >
-          {producto.nombre}
+          {nombreConColor(producto.nombre, producto.color)}
         </Link>
 
         {/* Precio */}
-        <div className="mt-auto">
+        <div className="mt-auto pt-2">
           {producto.en_oferta && !agotado ? (
             <div className="flex items-baseline gap-2">
               <span className="text-base font-bold text-green-600">
@@ -93,19 +118,48 @@ export default function ProductoCard({ producto }: Props) {
           )}
         </div>
 
-        {/* Botón */}
-        <button
-          onClick={() => !agotado && agregar(producto)}
-          disabled={agotado}
-          className={`mt-2 w-full flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-lg transition-colors ${
-            agotado
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-green-600 hover:bg-green-700 text-white'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          {agotado ? 'Sin stock' : 'Agregar al carrito'}
-        </button>
+        {/* Botón / Controles carrito */}
+        <div className="mt-2">
+          {agotado ? (
+            <div className="w-full flex items-center justify-center py-2 rounded-xl bg-gray-100 text-gray-400 text-[13px] font-semibold">
+              Sin stock
+            </div>
+          ) : cantidad > 0 ? (
+            /* Controles +/− cuando ya está en carrito */
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between border-2 border-green-500 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => actualizarCantidad(producto.id, cantidad - 1)}
+                  className="px-3 py-2 text-green-600 hover:bg-green-50 transition-colors active:bg-green-100"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-sm font-bold text-green-700 min-w-[1.5rem] text-center">
+                  {cantidad}
+                </span>
+                <button
+                  onClick={() => actualizarCantidad(producto.id, cantidad + 1)}
+                  disabled={enTope}
+                  className="px-3 py-2 text-green-600 hover:bg-green-50 transition-colors active:bg-green-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {enTope && (
+                <p className="text-[11px] text-amber-600 text-center">Máximo disponible</p>
+              )}
+            </div>
+          ) : (
+            /* Botón agregar inicial */
+            <button
+              onClick={() => agregar(producto)}
+              className="w-full flex items-center justify-center gap-1.5 text-[13px] font-semibold py-2 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white transition-colors"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              Agregar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

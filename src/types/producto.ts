@@ -11,6 +11,29 @@ export interface Categoria {
   nombre: string
 }
 
+export interface CategoriaArbol {
+  id: number
+  nombre: string
+  parent_id: number | null
+  children_recursive: CategoriaArbol[]
+}
+
+export interface CategoriaSugerida {
+  id: number
+  nombre: string
+  parent_id: number | null
+  imagen: string | null
+}
+
+export interface VarianteColor {
+  id: number
+  color: string | null
+  precio_venta: number
+  precio_oferta: number | null
+  en_oferta: boolean
+  imagen_principal: string | null
+}
+
 export interface Producto {
   id: number
   nombre: string
@@ -21,6 +44,7 @@ export interface Producto {
   precio_final: number
   en_oferta: boolean
   disponible: boolean
+  stock: number
   garantia: string | null
   categorias: Categoria[]
   imagen_principal: string | null
@@ -28,6 +52,7 @@ export interface Producto {
   // Solo en detalle
   descripcion?: string | null
   especificaciones?: string | null
+  variantes_color?: VarianteColor[]
 }
 
 export interface Paginacion {
@@ -46,11 +71,12 @@ export interface ProductosPaginados extends Paginacion {
 export interface FiltrosProducto {
   search?: string
   categoria_id?: number
+
   marca?: string
   precio_min?: number
   precio_max?: number
   solo_ofertas?: boolean
-  sort?: 'nombre_asc' | 'precio_asc' | 'precio_desc' | 'nuevos'
+  sort?: 'nombre_asc' | 'nombre_desc' | 'precio_asc' | 'precio_desc' | 'nuevos' | 'mejor_rating'
   page?: number
   per_page?: number
 }

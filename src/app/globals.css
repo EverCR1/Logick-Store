@@ -11,6 +11,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Announcement bar */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.announcement-track {
+  animation: marquee 18s linear infinite;
+}
+.announcement-track:hover {
+  animation-play-state: paused;
+}
+
 /* Scrollbar personalizado */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
