@@ -53,7 +53,8 @@ export default function PedidoDetallePage() {
       const { pdf }              = await import('@react-pdf/renderer')
       const { default: CompDoc } = await import('@/components/pdf/ComprobantePedido')
       const { createElement }    = await import('react')
-      const blob = await pdf(createElement(CompDoc, { pedido: data.pedido })).toBlob()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const blob = await pdf(createElement(CompDoc, { pedido: data.pedido }) as any).toBlob()
       const url  = URL.createObjectURL(blob)
       window.open(url, '_blank')
     } catch (e) {
