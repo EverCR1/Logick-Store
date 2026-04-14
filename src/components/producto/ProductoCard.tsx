@@ -23,6 +23,17 @@ export default function ProductoCard({ producto }: Props) {
 
   const { esFavorito, toggle: toggleFav, isPending: favPending, autenticado } = useFavorito(producto.id)
 
+  const [animando, setAnimando] = useState(false)
+  const handleFav = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (favPending) return
+    setAnimando(false)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setAnimando(true))
+    })
+    toggleFav()
+  }
+
   // Evitar hydration mismatch con el carrito (localStorage)
   const [montado, setMontado] = useState(false)
   useEffect(() => setMontado(true), [])
@@ -74,11 +85,16 @@ export default function ProductoCard({ producto }: Props) {
         {autenticado && (
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); toggleFav() }}
+            onClick={handleFav}
             disabled={favPending}
-            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors disabled:opacity-60"
+            onAnimationEnd={() => setAnimando(false)}
+            className={`group/fav absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white hover:shadow-[0_0_0_3px_rgba(250,204,21,0.35)] hover:scale-110 transition-all duration-150 disabled:opacity-60 ${animando ? 'animate-fav-pop' : ''}`}
           >
-            <Star className={`w-3.5 h-3.5 transition-colors ${esFavorito ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+            <Star className={`w-3.5 h-3.5 transition-all duration-150 ${
+              esFavorito
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'text-gray-300 group-hover/fav:text-yellow-500 group-hover/fav:fill-yellow-300 group-hover/fav:scale-110'
+            }`} />
           </button>
         )}
       </Link>

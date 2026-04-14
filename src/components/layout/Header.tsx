@@ -176,7 +176,12 @@ export default function Header() {
         </div>
       </div>
 
-      {/* ── Fila 2: Nav links — solo desktop ── */}
+      {/* ── Fila 2: Buscador — solo móvil, siempre visible ── */}
+      <div className="md:hidden border-t border-gray-100 px-4 py-2">
+        <BuscadorAutocomplete />
+      </div>
+
+      {/* ── Fila 3: Nav links — solo desktop ── */}
       <div className="hidden md:block border-t border-gray-100 bg-gray-50/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex items-center gap-6 h-9">
@@ -196,9 +201,6 @@ export default function Header() {
       {/* ── Menú móvil ── */}
       {menuAbierto && (
         <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 flex flex-col gap-4">
-
-          {/* Buscador móvil */}
-          <BuscadorAutocomplete onSearch={() => setMenuAbierto(false)} />
 
           {/* Nav links móvil */}
           <div className="flex flex-col gap-1">

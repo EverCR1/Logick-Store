@@ -23,6 +23,17 @@ body {
   animation-play-state: paused;
 }
 
+/* Animación favorito */
+@keyframes fav-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-fav-pop {
+  animation: fav-pop 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
 /* Scrollbar personalizado */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
