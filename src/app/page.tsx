@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, Tag, Gamepad2 } from 'lucide-react'
 import { tiendaApi } from '@/lib/api'
+import { toSlug } from '@/lib/utils'
 import { CategoriaArbol, Producto } from '@/types/producto'
 import ProductoCard from '@/components/producto/ProductoCard'
 
@@ -136,20 +137,20 @@ export default async function HomePage() {
 
       {/* ── Gaming ── */}
       {gaming.length > 0 && (
-        <section className="py-14 bg-gray-900">
+        <section className="py-14">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end justify-between mb-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Gamepad2 className="w-5 h-5 text-purple-400" />
-                  <h2 className="text-2xl font-bold text-white">Gaming</h2>
+                  <Gamepad2 className="w-5 h-5 text-purple-500" />
+                  <h2 className="text-2xl font-bold text-gray-900">Gaming</h2>
                 </div>
-                <p className="text-sm text-gray-400">Equípate para el siguiente nivel</p>
+                <p className="text-sm text-gray-500">Equípate para el siguiente nivel</p>
               </div>
               {gamingCatId && (
                 <Link
-                  href={`/productos?categoria_id=${gamingCatId}`}
-                  className="text-sm font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                  href={`/productos?categoria=${toSlug('Gaming', gamingCatId)}`}
+                  className="text-sm font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
                 >
                   Ver todos <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
