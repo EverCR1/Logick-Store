@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { ArrowRight, Tag } from 'lucide-react'
+import { ArrowRight, Tag, Gamepad2 } from 'lucide-react'
 import { tiendaApi } from '@/lib/api'
-import { Producto } from '@/types/producto'
+import { CategoriaArbol, Producto } from '@/types/producto'
 import ProductoCard from '@/components/producto/ProductoCard'
 
 async function getDestacados(): Promise<Producto[]> {
@@ -22,8 +22,35 @@ async function getOfertas(): Promise<Producto[]> {
   }
 }
 
+function findCategoriaId(cats: CategoriaArbol[], nombre: string): number | null {
+  for (const c of cats) {
+    if (c.nombre.toLowerCase() === nombre.toLowerCase()) return c.id
+    const found = findCategoriaId(c.children_recursive, nombre)
+    if (found) return found
+  }
+  return null
+}
+
+async function getGaming(): Promise<{ productos: Producto[]; categoriaId: number | null }> {
+  try {
+    const { categorias } = await tiendaApi.categorias.tree()
+    const categoriaId = findCategoriaId(categorias, 'Gaming')
+    if (!categoriaId) return { productos: [], categoriaId: null }
+
+    const data = await tiendaApi.productos.listar({ categoria_id: categoriaId, per_page: 4 })
+    const productos: Producto[] = (data.productos as any)?.data?.slice(0, 4) ?? []
+    return { productos, categoriaId }
+  } catch {
+    return { productos: [], categoriaId: null }
+  }
+}
+
 export default async function HomePage() {
-  const [destacados, ofertas] = await Promise.all([getDestacados(), getOfertas()])
+  const [destacados, ofertas, { productos: gaming, categoriaId: gamingCatId }] = await Promise.all([
+    getDestacados(),
+    getOfertas(),
+    getGaming(),
+  ])
 
   return (
     <div className="flex flex-col">
@@ -100,6 +127,36 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {ofertas.map((p) => (
+                <ProductoCard key={p.id} producto={p} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Gaming ── */}
+      {gaming.length > 0 && (
+        <section className="py-14 bg-gray-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Gamepad2 className="w-5 h-5 text-purple-400" />
+                  <h2 className="text-2xl font-bold text-white">Gaming</h2>
+                </div>
+                <p className="text-sm text-gray-400">Equípate para el siguiente nivel</p>
+              </div>
+              {gamingCatId && (
+                <Link
+                  href={`/productos?categoria_id=${gamingCatId}`}
+                  className="text-sm font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                >
+                  Ver todos <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {gaming.map((p) => (
                 <ProductoCard key={p.id} producto={p} />
               ))}
             </div>
