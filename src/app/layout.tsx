@@ -8,12 +8,18 @@ import AnnouncementBar from '@/components/layout/AnnouncementBar'
 
 const font = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] })
 
+const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://logickem.com'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(BASE),
   title: {
     default: process.env.NEXT_PUBLIC_STORE_NAME ?? 'Logickem',
     template: `%s | ${process.env.NEXT_PUBLIC_STORE_NAME ?? 'Logickem'}`,
   },
   description: 'Tienda en línea — productos y servicios de calidad.',
+  alternates: {
+    canonical: BASE,
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
