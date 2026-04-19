@@ -8,6 +8,8 @@ import { toSlug } from '@/lib/utils'
 import { Producto } from '@/types/producto'
 import ProductoCard from '@/components/producto/ProductoCard'
 
+export const revalidate = 1800 // refresca datos cada 30 min sin necesitar rebuild
+
 // ── Categorías conocidas (IDs de BD) ──────────────────────────────────────────
 const CAT = {
   gaming:       2,
