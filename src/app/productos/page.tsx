@@ -2,7 +2,13 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import CatalogoCliente from './CatalogoCliente'
 
-export const metadata: Metadata = { title: 'Productos' }
+const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://logickem.com'
+
+export const metadata: Metadata = {
+  title: 'Productos',
+  description: 'Explora nuestro catálogo completo de tecnología: computadoras, celulares, audio, gaming y más. Envío a toda Guatemala.',
+  alternates: { canonical: `${BASE}/productos` },
+}
 
 export default function ProductosPage() {
   return (

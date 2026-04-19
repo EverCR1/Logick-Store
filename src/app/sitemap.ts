@@ -6,11 +6,13 @@ import type { Paginacion } from '@/types/producto'
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://logickem.com'
 
 const STATIC: MetadataRoute.Sitemap = [
-  { url: BASE,                    priority: 1.0, changeFrequency: 'daily'  },
-  { url: `${BASE}/productos`,     priority: 0.9, changeFrequency: 'daily'  },
-  { url: `${BASE}/envios`,        priority: 0.4, changeFrequency: 'monthly' },
-  { url: `${BASE}/garantias`,     priority: 0.4, changeFrequency: 'monthly' },
-  { url: `${BASE}/faq`,           priority: 0.4, changeFrequency: 'monthly' },
+  { url: BASE,                      priority: 1.0, changeFrequency: 'daily',   lastModified: new Date() },
+  { url: `${BASE}/productos`,       priority: 0.9, changeFrequency: 'daily',   lastModified: new Date() },
+  { url: `${BASE}/garantias`,       priority: 0.5, changeFrequency: 'monthly', lastModified: new Date() },
+  { url: `${BASE}/envios`,          priority: 0.5, changeFrequency: 'monthly', lastModified: new Date() },
+  { url: `${BASE}/faq`,             priority: 0.5, changeFrequency: 'monthly', lastModified: new Date() },
+  { url: `${BASE}/terminos`,        priority: 0.3, changeFrequency: 'yearly',  lastModified: new Date() },
+  { url: `${BASE}/privacidad`,      priority: 0.3, changeFrequency: 'yearly',  lastModified: new Date() },
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -28,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           url:             `${BASE}/productos/${toSlug(p.nombre, p.id)}`,
           priority:        0.8,
           changeFrequency: 'weekly',
+          lastModified:    new Date(),
         })
       }
 

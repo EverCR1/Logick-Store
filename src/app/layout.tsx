@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     default: process.env.NEXT_PUBLIC_STORE_NAME ?? 'Logickem',
     template: `%s | ${process.env.NEXT_PUBLIC_STORE_NAME ?? 'Logickem'}`,
   },
-  description: 'Tienda en línea — productos y servicios de calidad.',
+  description: 'Logickem — tienda de tecnología en Guatemala. Computadoras, celulares, audio, gaming y accesorios con envío a todo el país.',
   alternates: {
     canonical: BASE,
   },
