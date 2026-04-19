@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useCuenta } from '@/store/cuenta'
-import { User, Package, MapPin, Heart, Tag, Star, LogOut, ChevronRight } from 'lucide-react'
+import { User, Package, MapPin, Heart, Tag, Star, Flag, LogOut, ChevronRight } from 'lucide-react'
 
 const NAV = [
   { href: '/cuenta',             label: 'Mi perfil',    icon: User },
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/cuenta/favoritos',   label: 'Favoritos',    icon: Heart },
   { href: '/cuenta/cupones',     label: 'Mis cupones',  icon: Tag },
   { href: '/cuenta/puntos',      label: 'Mis puntos',   icon: Star },
+  { href: '/cuenta/reportes',    label: 'Mis reportes', icon: Flag },
 ]
 
 export default function CuentaLayout({ children }: { children: React.ReactNode }) {

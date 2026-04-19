@@ -98,8 +98,13 @@ export default function GarantiasPage() {
       >
         <p>Para solicitar una garantía sigue estos pasos:</p>
         <ol className="list-decimal list-inside space-y-1 mt-1">
-          <li>Comunícate con nosotros a <strong>soporte@logickem.com</strong> dentro del período de garantía.</li>
-          <li>Indica tu número de pedido y describe el problema.</li>
+          <li>
+            Repórtalo directamente desde la tienda usando el botón{' '}
+            <strong>"Reportar un problema"</strong> que aparece en la barra de navegación —
+            es la forma más rápida y queda registrado automáticamente.
+          </li>
+          <li>O bien escríbenos a <strong>soporte@logickem.com</strong> dentro del período de garantía.</li>
+          <li>Indica tu número de pedido y describe el problema con el mayor detalle posible.</li>
           <li>Adjunta fotografías o video del defecto del producto.</li>
           <li>Nuestro equipo evaluará tu caso y te responderá en un plazo máximo de <strong>3 días hábiles</strong>.</li>
           <li>Si procede, coordinamos la devolución y el cambio o reembolso correspondiente.</li>
@@ -137,7 +142,35 @@ export default function GarantiasPage() {
         </p>
       </Section>
 
-      <div className="mt-10 bg-gray-50 border border-gray-100 rounded-2xl px-6 py-5 flex gap-4 items-start">
+      {/* Bloque: Reportar desde la tienda */}
+      <div className="mt-10 rounded-2xl bg-green-50 border border-green-200 px-6 py-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="w-5 h-5 text-green-600">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" x2="4" y1="22" y2="15" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-green-800 mb-1">Repórtalo directamente desde la tienda</p>
+            <p className="text-sm text-green-700 leading-relaxed mb-3">
+              ¿Recibiste un producto con defecto o algo salió mal con tu pedido? Usa el botón{' '}
+              <strong>"Reportar un problema"</strong> en la barra de navegación. Tu reporte queda
+              registrado y nuestro equipo lo revisa con prioridad.
+            </p>
+            <p className="text-sm text-green-700 leading-relaxed font-medium">
+              🎁 Los reportes válidos sobre defectos de productos o errores de la tienda son
+              recompensados con <strong>puntos o un cupón de descuento</strong> como agradecimiento
+              por ayudarnos a mejorar.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bloque: Contacto */}
+      <div className="mt-4 bg-gray-50 border border-gray-100 rounded-2xl px-6 py-5 flex gap-4 items-start">
         <EnvelopeIcon className="w-6 h-6 text-gray-400 flex-shrink-0 mt-0.5" />
         <div className="text-sm text-gray-500">
           <p className="font-medium text-gray-700 mb-1">¿Tienes alguna duda sobre tu garantía?</p>
@@ -145,8 +178,17 @@ export default function GarantiasPage() {
             Escríbenos a{' '}
             <a href="mailto:soporte@logickem.com" className="text-blue-600 hover:underline font-medium">
               soporte@logickem.com
-            </a>{' '}
-            y con gusto te ayudamos. También puedes consultar nuestras{' '}
+            </a>
+            {' '}o por{' '}
+            <a
+              href={`https://wa.me/50247104888?text=${encodeURIComponent('Hola, quisiera consultar sobre una garantía...')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-600 hover:underline font-medium"
+            >
+              WhatsApp
+            </a>
+            {' '}y con gusto te ayudamos. También puedes consultar nuestras{' '}
             <Link href="/faq" className="text-blue-600 hover:underline">
               preguntas frecuentes
             </Link>

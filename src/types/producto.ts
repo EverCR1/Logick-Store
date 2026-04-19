@@ -25,9 +25,15 @@ export interface CategoriaSugerida {
   imagen: string | null
 }
 
-export interface VarianteColor {
+export interface Atributo {
+  nombre: string
+  valor: string
+}
+
+export interface Variante {
   id: number
   color: string | null
+  atributos: Atributo[]
   precio_venta: number
   precio_oferta: number | null
   en_oferta: boolean
@@ -52,7 +58,9 @@ export interface Producto {
   // Solo en detalle
   descripcion?: string | null
   especificaciones?: string | null
-  variantes_color?: VarianteColor[]
+  grupo_variante?: string | null
+  atributos?: Atributo[]
+  variantes?: Variante[]
 }
 
 export interface Paginacion {
@@ -70,6 +78,8 @@ export interface ProductosPaginados extends Paginacion {
 
 export interface FiltrosProducto {
   search?: string
+  search_desc?: boolean
+  stock?: 'disponible' | 'agotado'
   categoria_id?: number
 
   marca?: string

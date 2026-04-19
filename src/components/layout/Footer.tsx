@@ -41,12 +41,14 @@ function YouTubeIcon() {
   )
 }
 
+const WA_URL = `https://wa.me/50247104888?text=${encodeURIComponent('Hola, quisiera hablar con ustedes...')}`
+
 const redes = [
-  { label: 'Facebook',  icon: <FacebookIcon />,  color: 'hover:text-blue-400' },
-  { label: 'WhatsApp',  icon: <WhatsAppIcon />,  color: 'hover:text-green-400' },
-  { label: 'Instagram', icon: <InstagramIcon />, color: 'hover:text-pink-400' },
-  { label: 'TikTok',    icon: <TikTokIcon />,    color: 'hover:text-white' },
-  { label: 'YouTube',   icon: <YouTubeIcon />,   color: 'hover:text-red-400' },
+  { label: 'Facebook',  icon: <FacebookIcon />,  color: 'hover:text-blue-400',  href: null },
+  { label: 'WhatsApp',  icon: <WhatsAppIcon />,  color: 'hover:text-green-400', href: WA_URL },
+  { label: 'Instagram', icon: <InstagramIcon />, color: 'hover:text-pink-400',  href: null },
+  { label: 'TikTok',    icon: <TikTokIcon />,    color: 'hover:text-white',     href: null },
+  { label: 'YouTube',   icon: <YouTubeIcon />,   color: 'hover:text-red-400',   href: null },
 ]
 
 export default function Footer() {
@@ -97,13 +99,26 @@ export default function Footer() {
             <ul className="space-y-3">
               {redes.map((red) => (
                 <li key={red.label}>
-                  <span
-                    className={`flex items-center gap-2.5 text-sm cursor-default transition-colors ${red.color}`}
-                    aria-label={red.label}
-                  >
-                    {red.icon}
-                    {red.label}
-                  </span>
+                  {red.href ? (
+                    <a
+                      href={red.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-2.5 text-sm transition-colors ${red.color}`}
+                      aria-label={red.label}
+                    >
+                      {red.icon}
+                      {red.label}
+                    </a>
+                  ) : (
+                    <span
+                      className={`flex items-center gap-2.5 text-sm cursor-default transition-colors ${red.color}`}
+                      aria-label={red.label}
+                    >
+                      {red.icon}
+                      {red.label}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

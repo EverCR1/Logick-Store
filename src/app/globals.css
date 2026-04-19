@@ -34,6 +34,15 @@ body {
   animation: fav-pop 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
+/* Crossfade al cambiar imagen de variante */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
+
 /* Scrollbar personalizado */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }

@@ -2,62 +2,183 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { ShoppingCart, ChevronLeft, Check, Shield, Plus, Minus, Star } from 'lucide-react'
-import { Producto, ImagenProducto } from '@/types/producto'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ShoppingCart, ChevronLeft, Check, Shield, Plus, Minus, Star, ZoomIn, X, ChevronRight } from 'lucide-react'
+import { Producto, ImagenProducto, Atributo } from '@/types/producto'
 import { useCarrito } from '@/store/carrito'
 import { useFavorito } from '@/hooks/useFavorito'
 import { formatPrecio, calcularDescuento, toSlug, nombreConColor } from '@/lib/utils'
 import ResenasPreguntasSection from './ResenasPreguntasSection'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.logickem.com/api'
+
 interface Props {
   producto: Producto
 }
 
-export default function DetalleCliente({ producto }: Props) {
+export default function DetalleCliente({ producto: productoInicial }: Props) {
+  // ── Estado activo — se actualiza al cambiar variante ────────────────────────
+  const [pa, setPa] = useState<Producto>(productoInicial)
+  const paRef = useRef(pa)
+  useEffect(() => { paRef.current = pa }, [pa])
+
   const agregar            = useCarrito((s) => s.agregar)
   const actualizarCantidad = useCarrito((s) => s.actualizarCantidad)
   const items              = useCarrito((s) => s.items)
-  const agotado            = !producto.disponible
+  const agotado            = !pa.disponible
 
-  const { esFavorito, toggle: toggleFav, isPending: favPending, autenticado } = useFavorito(producto.id)
+  const { esFavorito, toggle: toggleFav, isPending: favPending, autenticado } = useFavorito(pa.id)
 
-  // Hydration safe — carrito viene de localStorage
+  // Hydration safe
   const [montado, setMontado] = useState(false)
   useEffect(() => setMontado(true), [])
 
-  const itemEnCarrito     = montado ? items.find((i) => i.id === producto.id) : undefined
+  const itemEnCarrito     = montado ? items.find((i) => i.id === pa.id) : undefined
   const cantidadEnCarrito = itemEnCarrito?.cantidad ?? 0
-  const enTope            = cantidadEnCarrito >= producto.stock
+  const enTope            = cantidadEnCarrito >= pa.stock
 
-  // Galería
-  const imagenes: ImagenProducto[] = producto.imagenes ?? []
+  // ── Galería ─────────────────────────────────────────────────────────────────
+  const imagenes: ImagenProducto[] = pa.imagenes ?? []
+
   const [imgActiva, setImgActiva]   = useState<string | null>(
-    producto.imagen_principal ?? (imagenes[0]?.url_medium ?? imagenes[0]?.url ?? null)
+    pa.imagen_principal ?? (imagenes[0]?.url_medium ?? imagenes[0]?.url ?? null)
   )
+  // Crossfade: montamos/desmontamos la imagen con una key que cambia al variar la URL
+  const [imgKey, setImgKey] = useState(0)
+
   const [agregado, setAgregado] = useState(false)
+
+  // ── Lightbox ─────────────────────────────────────────────────────────────────
+  const [lightbox, setLightbox] = useState(false)
+  const [lbIdx, setLbIdx]       = useState(0)
+
+  // Fuentes de alta calidad para el lightbox (url original, sin resize de thumbnail)
+  const lbImagenes = imagenes.length > 0
+    ? imagenes
+    : pa.imagen_principal
+      ? [{ id: 0, url: pa.imagen_principal, url_thumb: pa.imagen_principal, url_medium: pa.imagen_principal, es_principal: true }]
+      : []
+  const lbTotal    = lbImagenes.length
+
+  const abrirLightbox = (idx = 0) => { setLbIdx(idx); setLightbox(true) }
+  const cerrarLightbox = () => setLightbox(false)
+  const lbAnterior = () => setLbIdx(i => (i - 1 + lbTotal) % lbTotal)
+  const lbSiguiente = () => setLbIdx(i => (i + 1) % lbTotal)
+
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape')      cerrarLightbox()
+      if (e.key === 'ArrowLeft')   lbAnterior()
+      if (e.key === 'ArrowRight')  lbSiguiente()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox, lbTotal])
 
   const handleAgregar = () => {
     if (agotado) return
-    agregar(producto)
+    agregar(pa)
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)
   }
 
-  // Imágenes para miniaturas (sin duplicar la activa al inicio)
   const miniaturas = imagenes.length > 0
     ? imagenes
-    : producto.imagen_principal
-      ? [{ id: 0, url: producto.imagen_principal, url_thumb: producto.imagen_principal, url_medium: producto.imagen_principal, es_principal: true }]
+    : pa.imagen_principal
+      ? [{ id: 0, url: pa.imagen_principal, url_thumb: pa.imagen_principal, url_medium: pa.imagen_principal, es_principal: true }]
       : []
 
+  // ── Cambio de variante — sin navegación ─────────────────────────────────────
+  // Creado una sola vez — lee pa siempre a través del ref, sin stale closures
+  const switchVariante = useCallback(async (
+    varianteId: number,
+    parcial: {
+      color: string | null
+      atributos: Atributo[]
+      precio_venta: number
+      precio_oferta: number | null
+      en_oferta: boolean
+      imagen_principal: string | null
+    }
+  ) => {
+    const current = paRef.current
+    if (varianteId === current.id) return
+
+    // Lista completa del grupo leída del ref — siempre fresca
+    const todosActuales = [
+      {
+        id:               current.id,
+        color:            current.color,
+        atributos:        current.atributos ?? [],
+        imagen_principal: current.imagen_principal,
+        precio_venta:     current.precio_venta,
+        precio_oferta:    current.precio_oferta,
+        en_oferta:        current.en_oferta,
+      },
+      ...(current.variantes ?? []),
+    ]
+    const nuevasVariantes = todosActuales.filter(v => v.id !== varianteId)
+
+    // 1. Swap visual instantáneo
+    const nuevaImg = parcial.imagen_principal ?? null
+    setPa(prev => ({
+      ...prev,
+      id:               varianteId,
+      color:            parcial.color,
+      atributos:        parcial.atributos,
+      precio_venta:     parcial.precio_venta,
+      precio_oferta:    parcial.precio_oferta,
+      en_oferta:        parcial.en_oferta,
+      imagen_principal: nuevaImg,
+      imagenes:         nuevaImg
+        ? [{ id: 0, url: nuevaImg, url_thumb: nuevaImg, url_medium: nuevaImg, es_principal: true }]
+        : prev.imagenes,
+      disponible:       true,
+      variantes:        nuevasVariantes,
+    }))
+    setImgActiva(nuevaImg)
+    setImgKey(k => k + 1)
+
+    // 2. Solo actualiza la URL bar — sin disparar ningún re-render de Next.js
+    window.history.replaceState(null, '', `/productos/${toSlug(productoInicial.nombre, varianteId)}`)
+
+    // 3. Fetch en background — solo campos no disponibles en el swap inicial
+    try {
+      const res = await fetch(`${API_URL}/tienda/productos/${varianteId}`, {
+        headers: { Accept: 'application/json' },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.producto) {
+          const full = data.producto as Producto
+          setPa(prev => ({
+            ...prev,
+            stock:            full.stock,
+            disponible:       full.disponible,
+            garantia:         full.garantia,
+            descripcion:      full.descripcion,
+            especificaciones: full.especificaciones,
+            marca:            full.marca,
+            categorias:       full.categorias,
+            imagenes:         (full.imagenes?.length ?? 0) > 1 ? full.imagenes : prev.imagenes,
+            imagen_principal: full.imagen_principal ?? prev.imagen_principal,
+          }))
+        }
+      }
+    } catch {
+      // datos parciales ya visibles; fallo silencioso
+    }
+  }, [productoInicial.nombre])
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       {/* Breadcrumb */}
       <nav className="flex items-center flex-wrap gap-1.5 text-sm text-gray-400 mb-6">
         <Link href="/productos" className="hover:text-green-600 transition-colors">Productos</Link>
-        {producto.categorias?.map((cat) => (
+        {pa.categorias?.map((cat) => (
           <span key={cat.id} className="contents">
             <span>/</span>
             <Link
@@ -69,7 +190,7 @@ export default function DetalleCliente({ producto }: Props) {
           </span>
         ))}
         <span>/</span>
-        <span className="text-gray-700 line-clamp-1">{producto.nombre}</span>
+        <span className="text-gray-700 line-clamp-1">{pa.nombre}</span>
       </nav>
 
       {/* Botón volver móvil */}
@@ -86,20 +207,34 @@ export default function DetalleCliente({ producto }: Props) {
 
         {/* ── Columna izquierda: galería ── */}
         <div className="flex flex-col gap-3">
-          {/* Imagen principal */}
-          <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-gray-100">
+          <div
+            className={`relative aspect-square w-full rounded-2xl overflow-hidden bg-gray-100 group ${imgActiva ? 'cursor-zoom-in' : ''}`}
+            onClick={() => {
+              if (!imgActiva) return
+              const idx = lbImagenes.findIndex(img => img.url === imgActiva || (img.url_medium ?? img.url) === imgActiva)
+              abrirLightbox(idx >= 0 ? idx : 0)
+            }}
+          >
             {imgActiva ? (
               <Image
+                key={imgKey}
                 src={imgActiva}
-                alt={producto.nombre}
+                alt={pa.nombre}
                 fill
-                className={`object-cover transition-all duration-300 ${agotado ? 'grayscale' : ''}`}
+                className={`object-cover animate-fade-in ${agotado ? 'grayscale' : ''}`}
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
                 Sin imagen
+              </div>
+            )}
+
+            {/* Hint de zoom */}
+            {imgActiva && (
+              <div className="absolute bottom-3 right-3 bg-black/40 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <ZoomIn className="w-4 h-4" />
               </div>
             )}
 
@@ -111,9 +246,9 @@ export default function DetalleCliente({ producto }: Props) {
               </div>
             )}
 
-            {producto.en_oferta && !agotado && (
+            {pa.en_oferta && !agotado && (
               <span className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                -{calcularDescuento(producto.precio_venta, producto.precio_oferta!)} DCTO
+                -{calcularDescuento(pa.precio_venta, pa.precio_oferta!)} DCTO
               </span>
             )}
           </div>
@@ -122,7 +257,7 @@ export default function DetalleCliente({ producto }: Props) {
           {miniaturas.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1">
               {miniaturas.map((img) => {
-                const src = img.url_thumb ?? img.url_medium ?? img.url
+                const src     = img.url_thumb ?? img.url_medium ?? img.url
                 const isActiva = imgActiva === (img.url_medium ?? img.url)
                 return (
                   <button
@@ -146,35 +281,38 @@ export default function DetalleCliente({ producto }: Props) {
           {/* Nombre */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
-              {nombreConColor(producto.nombre, producto.color)}
+              {nombreConColor(pa.nombre, pa.color)}
             </h1>
-            {producto.marca && (
+            {pa.marca && (
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Marca:</span>
-                <span className="text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
-                  {producto.marca}
-                </span>
+                <Link
+                  href={`/productos?marca=${encodeURIComponent(pa.marca)}`}
+                  className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1 rounded-full transition-colors"
+                >
+                  {pa.marca}
+                </Link>
               </div>
             )}
           </div>
 
           {/* Precio */}
           <div className="flex items-baseline gap-3">
-            {producto.en_oferta && producto.precio_oferta ? (
+            {pa.en_oferta && pa.precio_oferta ? (
               <>
                 <span className="text-3xl font-bold text-green-600">
-                  {formatPrecio(producto.precio_oferta)}
+                  {formatPrecio(pa.precio_oferta)}
                 </span>
                 <span className="text-lg text-gray-400 line-through">
-                  {formatPrecio(producto.precio_venta)}
+                  {formatPrecio(pa.precio_venta)}
                 </span>
                 <span className="text-sm font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-                  Ahorras {formatPrecio(producto.precio_venta - producto.precio_oferta)}
+                  Ahorras {formatPrecio(pa.precio_venta - pa.precio_oferta)}
                 </span>
               </>
             ) : (
               <span className={`text-3xl font-bold ${agotado ? 'text-gray-400' : 'text-gray-900'}`}>
-                {formatPrecio(producto.precio_venta)}
+                {formatPrecio(pa.precio_venta)}
               </span>
             )}
           </div>
@@ -190,12 +328,11 @@ export default function DetalleCliente({ producto }: Props) {
             {!agotado && (
               <div className="flex items-center gap-3">
                 {cantidadEnCarrito > 0 ? (
-                  /* Ya está en carrito — controles +/− */
                   <>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center border-2 border-green-500 rounded-xl overflow-hidden">
                         <button
-                          onClick={() => actualizarCantidad(producto.id, cantidadEnCarrito - 1)}
+                          onClick={() => actualizarCantidad(pa.id, cantidadEnCarrito - 1)}
                           className="px-4 py-2.5 text-green-600 hover:bg-green-50 transition-colors"
                         >
                           <Minus className="w-4 h-4" />
@@ -204,7 +341,7 @@ export default function DetalleCliente({ producto }: Props) {
                           {cantidadEnCarrito}
                         </span>
                         <button
-                          onClick={() => actualizarCantidad(producto.id, cantidadEnCarrito + 1)}
+                          onClick={() => actualizarCantidad(pa.id, cantidadEnCarrito + 1)}
                           disabled={enTope}
                           className="px-4 py-2.5 text-green-600 hover:bg-green-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
@@ -221,7 +358,6 @@ export default function DetalleCliente({ producto }: Props) {
                     </span>
                   </>
                 ) : (
-                  /* Aún no está en carrito */
                   <button
                     onClick={handleAgregar}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
@@ -231,20 +367,13 @@ export default function DetalleCliente({ producto }: Props) {
                     }`}
                   >
                     {agregado ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Agregado al carrito
-                      </>
+                      <><Check className="w-4 h-4" />Agregado al carrito</>
                     ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4" />
-                        Agregar al carrito
-                      </>
+                      <><ShoppingCart className="w-4 h-4" />Agregar al carrito</>
                     )}
                   </button>
                 )}
 
-                {/* Botón favorito */}
                 {autenticado && (
                   <button
                     type="button"
@@ -263,7 +392,6 @@ export default function DetalleCliente({ producto }: Props) {
               </div>
             )}
 
-            {/* Favorito cuando está agotado */}
             {agotado && autenticado && (
               <button
                 type="button"
@@ -282,76 +410,238 @@ export default function DetalleCliente({ producto }: Props) {
           </div>
 
           {/* Garantía */}
-          <div className="flex items-center gap-2.5 text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">
+          <Link
+            href="/garantias"
+            className="flex items-center gap-2.5 text-sm text-gray-600 bg-gray-50 hover:bg-green-50 hover:text-green-700 rounded-xl px-4 py-3 transition-colors group"
+          >
             <Shield className="w-4 h-4 text-green-600 shrink-0" />
-            <span>Garantía: <strong>{producto.garantia ?? 'Sin garantía'}</strong></span>
-          </div>
+            <span>Garantía: <strong>{pa.garantia ?? 'Sin garantía'}</strong></span>
+            <span className="ml-auto text-xs text-gray-400 group-hover:text-green-600 transition-colors">Ver política →</span>
+          </Link>
 
-          {/* Variantes de color */}
-          {(producto.variantes_color?.length ?? 0) > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Color: <span className="text-gray-800 normal-case font-bold">{producto.color}</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {/* Color actual — seleccionado */}
-                <div className="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-green-500 ring-2 ring-green-200 shrink-0">
-                  {producto.imagen_principal && (
-                    <Image src={producto.imagen_principal} alt={producto.color ?? ''} fill className="object-cover" sizes="56px" />
-                  )}
-                </div>
-                {/* Otras variantes */}
-                {producto.variantes_color!.map((v) => (
-                  <Link
-                    key={v.id}
-                    href={`/productos/${toSlug(producto.nombre, v.id)}`}
-                    title={v.color ?? ''}
-                    className="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-transparent hover:border-gray-300 opacity-70 hover:opacity-100 transition-all shrink-0"
-                  >
-                    {v.imagen_principal && (
-                      <Image src={v.imagen_principal} alt={v.color ?? ''} fill className="object-cover" sizes="56px" />
-                    )}
-                    {!v.imagen_principal && (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-400 text-center px-1">
-                        {v.color}
+          {/* Variantes del grupo — selectores agrupados por atributo */}
+          {(pa.variantes?.length ?? 0) > 0 && (() => {
+            const todos = [
+              {
+                id:              pa.id,
+                color:           pa.color,
+                atributos:       pa.atributos ?? [],
+                imagen_principal: pa.imagen_principal,
+                precio_venta:    pa.precio_venta,
+                precio_oferta:   pa.precio_oferta,
+                en_oferta:       pa.en_oferta,
+              },
+              ...pa.variantes!,
+            ]
+
+            const TALLA_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'XXXL', '4XL']
+
+            const extractNum = (s: string): number | null => {
+              const m = s.match(/^(\d+(?:[.,]\d+)?)/)
+              return m ? parseFloat(m[1].replace(',', '.')) : null
+            }
+
+            const sortValores = (vals: string[]): string[] => {
+              const upper = vals.map(v => v.trim().toUpperCase())
+              if (upper.every(v => TALLA_ORDER.includes(v)))
+                return [...vals].sort((a, b) =>
+                  TALLA_ORDER.indexOf(a.trim().toUpperCase()) - TALLA_ORDER.indexOf(b.trim().toUpperCase())
+                )
+              const nums = vals.map(extractNum)
+              if (nums.every(n => n !== null))
+                return [...vals].sort((a, b) => extractNum(a)! - extractNum(b)!)
+              return [...vals].sort((a, b) => a.localeCompare(b, 'es'))
+            }
+
+            const tieneColor  = todos.some(v => v.color)
+            const nombresAttr: string[] = []
+            todos.forEach(v => v.atributos?.forEach(a => {
+              if (!nombresAttr.includes(a.nombre)) nombresAttr.push(a.nombre)
+            }))
+
+            const variantConAttr  = (nombre: string, valor: string) =>
+              todos.find(v => v.atributos?.some(a => a.nombre === nombre && a.valor === valor))
+            const variantConColor = (color: string) =>
+              todos.find(v => v.color === color)
+
+            // Badge — botón (no Link) para evitar navegación
+            const Badge = ({
+              valor, isActual, onClick,
+            }: { valor: string; isActual: boolean; onClick: () => void }) => (
+              <button
+                type="button"
+                onClick={onClick}
+                disabled={isActual}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
+                  isActual
+                    ? 'border-green-500 bg-green-50 text-green-700 cursor-default'
+                    : 'border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 cursor-pointer'
+                }`}
+              >
+                {valor}
+              </button>
+            )
+
+            return (
+              <div className="flex flex-col gap-3">
+                {tieneColor && (() => {
+                  const colores = sortValores(
+                    [...new Set(todos.map(v => v.color).filter(Boolean) as string[])]
+                  )
+                  return (
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Color</p>
+                      <div className="flex flex-wrap gap-2">
+                        {colores.map(color => {
+                          const target = variantConColor(color)!
+                          return (
+                            <Badge
+                              key={color}
+                              valor={color}
+                              isActual={target.id === pa.id}
+                              onClick={() => switchVariante(target.id, target)}
+                            />
+                          )
+                        })}
                       </div>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+                    </div>
+                  )
+                })()}
 
-          {/* Color sin variantes */}
-          {(producto.variantes_color?.length ?? 0) === 0 && producto.color && (
-            <p className="text-sm text-gray-600">
-              Color: <strong className="text-gray-800">{producto.color}</strong>
-            </p>
-          )}
+                {nombresAttr.map(nombre => {
+                  const valores = sortValores([
+                    ...new Set(
+                      todos.flatMap(v => v.atributos?.filter(a => a.nombre === nombre).map(a => a.valor) ?? [])
+                    ),
+                  ])
+                  return (
+                    <div key={nombre} className="flex flex-col gap-1.5">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{nombre}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {valores.map(valor => {
+                          const target = variantConAttr(nombre, valor)!
+                          return (
+                            <Badge
+                              key={valor}
+                              valor={valor}
+                              isActual={target.id === pa.id}
+                              onClick={() => switchVariante(target.id, target)}
+                            />
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
 
           {/* Descripción */}
-          {producto.descripcion && (
+          {pa.descripcion && (
             <div className="border-t border-gray-100 pt-5">
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Descripción</h2>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                {producto.descripcion}
+                {pa.descripcion}
               </p>
             </div>
           )}
 
           {/* Especificaciones */}
-          {producto.especificaciones && (
+          {pa.especificaciones && (
             <div className="border-t border-gray-100 pt-5">
               <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Especificaciones</h2>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                {producto.especificaciones}
+                {pa.especificaciones}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      <ResenasPreguntasSection productoId={producto.id} />
+      <ResenasPreguntasSection productoId={pa.id} />
+
+      {/* ── Lightbox ───────────────────────────────────────────────────────── */}
+      {lightbox && lbTotal > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 animate-fade-in cursor-zoom-out"
+          onClick={cerrarLightbox}
+        >
+          {/*
+            img nativo (no next/image fill) para que el wrapper se ajuste exactamente
+            al tamaño renderizado. Clicks fuera de la imagen pero dentro del viewport
+            llegan al backdrop y cierran el lightbox.
+          */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+          <div
+            className="cursor-default animate-fade-in"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={lbIdx}
+              src={lbImagenes[lbIdx]?.url ?? ''}
+              alt={pa.nombre}
+              className="block rounded-lg animate-fade-in"
+              style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+            />
+          </div>
+
+          {/* Cerrar */}
+          <button
+            onClick={cerrarLightbox}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition-colors cursor-pointer"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Flecha izquierda */}
+          {lbTotal > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); lbAnterior() }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/25 text-white rounded-full p-3 transition-colors cursor-pointer"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Flecha derecha */}
+          {lbTotal > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); lbSiguiente() }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/25 text-white rounded-full p-3 transition-colors cursor-pointer"
+              aria-label="Siguiente"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Miniaturas y contador */}
+          {lbTotal > 1 && (
+            <div
+              className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex gap-2">
+                {lbImagenes.map((img, i) => (
+                  <button
+                    key={img.id}
+                    onClick={() => setLbIdx(i)}
+                    className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                      i === lbIdx ? 'border-white opacity-100' : 'border-white/30 opacity-50 hover:opacity-80'
+                    }`}
+                  >
+                    <Image src={img.url_thumb ?? img.url} alt="" fill className="object-cover" sizes="48px" />
+                  </button>
+                ))}
+              </div>
+              <span className="text-white/60 text-xs">{lbIdx + 1} / {lbTotal}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

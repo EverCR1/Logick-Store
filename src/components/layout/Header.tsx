@@ -4,12 +4,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCarrito } from '@/store/carrito'
 import { useCuenta } from '@/store/cuenta'
-import { ShoppingCart, Menu, X, User, LogOut, Package, ChevronDown } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LogOut, Package, ChevronDown, Flag } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { tiendaApi } from '@/lib/api'
 import CategoriasDropdown from './CategoriasDropdown'
 import BuscadorAutocomplete from './BuscadorAutocomplete'
+import ReportarProblema from '@/components/ui/ReportarProblema'
 
 const navegacion = [
   { label: 'Inicio',       href: '/' },
@@ -27,6 +28,7 @@ export default function Header() {
 
   const [menuAbierto,    setMenuAbierto]    = useState(false)
   const [cuentaAbierto,  setCuentaAbierto]  = useState(false)
+  const [reporteAbierto, setReporteAbierto] = useState(false)
   const [montado,        setMontado]        = useState(false)
   const cuentaRef = useRef<HTMLDivElement>(null)
 
@@ -56,6 +58,7 @@ export default function Header() {
   }
 
   return (
+    <>
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
 
       {/* ── Fila 1: Logo · Categorías · Buscador · Cuenta · Carrito ── */}
@@ -194,6 +197,13 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+            <button
+              onClick={() => setReporteAbierto(true)}
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-green-600 transition-colors"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              Reportar un problema
+            </button>
           </nav>
         </div>
       </div>
@@ -214,6 +224,13 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+            <button
+              onClick={() => { setMenuAbierto(false); setReporteAbierto(true) }}
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-green-600 py-1 text-left"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              Reportar un problema
+            </button>
           </div>
 
           {/* Cuenta móvil */}
@@ -251,5 +268,8 @@ export default function Header() {
         </div>
       )}
     </header>
+
+    <ReportarProblema open={reporteAbierto} onClose={() => setReporteAbierto(false)} />
+    </>
   )
 }

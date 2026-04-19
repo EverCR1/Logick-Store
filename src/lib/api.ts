@@ -133,6 +133,57 @@ export const tiendaApi = {
       }),
   },
 
+  // ── Sucursales ────────────────────────────────────────────────────────────
+  sucursales: {
+    listar: () =>
+      request<{
+        success: boolean
+        sucursales: {
+          id: number; nombre: string; direccion: string | null
+          municipio: string | null; departamento: string | null
+          referencia: string | null; horario: string | null
+          telefono: string | null; lat: number | null; lng: number | null
+        }[]
+      }>('/tienda/sucursales'),
+  },
+
+  // ── Reportes de problemas ─────────────────────────────────────────────────
+  reportes: {
+    categorias: () =>
+      request<{ success: boolean; categorias: Record<string, string> }>('/tienda/reportes/categorias'),
+
+    enviar: (payload: {
+      categoria: string
+      descripcion: string
+      nombre_contacto?: string
+      email_contacto?: string
+      telefono_contacto?: string
+    }, token?: string | null) =>
+      request<{ success: boolean; message: string }>('/tienda/reportes', {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept':       'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      }),
+
+    miReportes: (token: string) =>
+      request<{
+        success: boolean
+        reportes: {
+          id: number
+          categoria: string
+          descripcion: string
+          estado: string
+          puntos_otorgados: number | null
+          nota_admin: string | null
+          created_at: string
+        }[]
+      }>('/tienda/cuenta/reportes', { headers: authHeaders(token) }),
+  },
+
   // ── Cupones ───────────────────────────────────────────────────────────────
   cupones: {
     validar: (codigo: string, subtotal: number, token?: string | null) =>

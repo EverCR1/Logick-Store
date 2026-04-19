@@ -20,20 +20,13 @@ const DEPARTAMENTOS = Object.keys(MUNICIPIOS_POR_DEPARTAMENTO).sort()
 interface Sucursal {
   id:           number
   nombre:       string
-  departamento: string
-  municipio:    string
-  direccion:    string
+  departamento: string | null
+  municipio:    string | null
+  direccion:    string | null
+  referencia:   string | null
+  horario:      string | null
+  telefono:     string | null
 }
-
-const SUCURSALES: Sucursal[] = [
-  {
-    id:           1,
-    nombre:       'Logickem Rabinal',
-    departamento: 'Baja Verapaz',
-    municipio:    'Rabinal',
-    direccion:    '2da. Calle 6-41 zona 3',
-  },
-]
 
 const METODOS_PAGO = [
   { value: 'efectivo',               label: 'Efectivo contra entrega' },
@@ -90,7 +83,7 @@ export default function CheckoutForm() {
 
   // Tipo de entrega
   const [tipoEntrega,    setTipoEntrega]    = useState<'domicilio' | 'tienda'>('domicilio')
-  const [sucursalId,     setSucursalId]     = useState<number>(SUCURSALES[0].id)
+  const [sucursalId,     setSucursalId]     = useState<number | null>(null)
 
   // Dirección seleccionada: id de dirección guardada o 'nueva'
   const [direccionSeleccionada, setDireccionSeleccionada] = useState<number | 'nueva' | null>(null)
@@ -120,8 +113,39 @@ export default function CheckoutForm() {
   const [comprobanteEnviado, setComprobanteEnviado] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Sucursales activas desde la API
+  const { data: dataSucursales } = useQuery({
+    queryKey: ['tienda-sucursales'],
+    queryFn:  () => tiendaApi.sucursales.listar(),
+    staleTime: 1000 * 60 * 10,
+  })
+  const sucursales: Sucursal[] = dataSucursales?.sucursales ?? []
+
+  const aplicarSucursal = (suc: Sucursal) => {
+    const partes = [suc.direccion, suc.municipio, suc.departamento].filter(Boolean)
+    setForm((f) => ({
+      ...f,
+      departamento: suc.departamento ?? '',
+      municipio:    suc.municipio    ?? '',
+      direccion:    partes.join(', '),
+      referencias:  '',
+    }))
+  }
+
+  // Seleccionar la primera sucursal automáticamente cuando carguen
+  useEffect(() => {
+    if (sucursalId !== null || sucursales.length === 0) return
+    const primera = sucursales[0]
+    setSucursalId(primera.id)
+    if (tipoEntrega === 'tienda') aplicarSucursal(primera)
+  }, [sucursales]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Direcciones guardadas (solo si autenticado)
-  const { data: dataDirecciones } = useQuery({
+  const {
+    data: dataDirecciones,
+    isLoading: cargandoDirecciones,
+    isSuccess: direccionesListas,
+  } = useQuery({
     queryKey: ['cuenta-direcciones-checkout'],
     queryFn:  () => tiendaApi.cuenta.direcciones.listar(token!),
     enabled:  autenticado && !!token,
@@ -130,23 +154,23 @@ export default function CheckoutForm() {
 
   const direccionesGuardadas: Direccion[] = dataDirecciones?.direcciones ?? []
 
-  // Seleccionar la dirección principal automáticamente la primera vez
+  // Auto-seleccionar la dirección principal cuando la query termine (no antes)
   useEffect(() => {
-    if (!autenticado || direccionSeleccionada !== null || tipoEntrega === 'tienda') return
+    if (!autenticado || !direccionesListas || direccionSeleccionada !== null || tipoEntrega === 'tienda') return
     if (direccionesGuardadas.length === 0) {
       setDireccionSeleccionada('nueva')
       return
     }
     const principal = direccionesGuardadas.find((d) => d.es_principal) ?? direccionesGuardadas[0]
     aplicarDireccion(principal)
-  }, [direccionesGuardadas, autenticado]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [direccionesListas, autenticado]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const aplicarDireccion = (d: Direccion) => {
     setDireccionSeleccionada(d.id)
     setForm((f) => ({
       ...f,
-      nombre:       f.nombre || d.nombre_receptor,
-      telefono:     f.telefono || d.telefono,
+      nombre:       d.nombre_receptor,
+      telefono:     d.telefono,
       departamento: d.departamento,
       municipio:    d.municipio,
       direccion:    d.direccion,
@@ -157,21 +181,23 @@ export default function CheckoutForm() {
 
   const seleccionarNueva = () => {
     setDireccionSeleccionada('nueva')
-    setForm((f) => ({ ...f, departamento: '', municipio: '', direccion: '', referencias: '' }))
+    setForm((f) => ({
+      ...f,
+      nombre:       cuenta?.nombre_completo ?? f.nombre,
+      telefono:     cuenta?.telefono        ?? '',
+      departamento: '',
+      municipio:    '',
+      direccion:    '',
+      referencias:  '',
+    }))
     setErrores({})
   }
 
   const seleccionarTipoEntrega = (tipo: 'domicilio' | 'tienda') => {
     setTipoEntrega(tipo)
     if (tipo === 'tienda') {
-      const suc = SUCURSALES.find((s) => s.id === sucursalId) ?? SUCURSALES[0]
-      setForm((f) => ({
-        ...f,
-        departamento: suc.departamento,
-        municipio:    suc.municipio,
-        direccion:    suc.direccion,
-        referencias:  '',
-      }))
+      const suc = sucursales.find((s) => s.id === sucursalId) ?? sucursales[0]
+      if (suc) aplicarSucursal(suc)
     } else {
       setForm((f) => ({ ...f, departamento: '', municipio: '', direccion: '', referencias: '' }))
       if (autenticado && direccionesGuardadas.length > 0) {
@@ -186,14 +212,8 @@ export default function CheckoutForm() {
 
   const seleccionarSucursal = (id: number) => {
     setSucursalId(id)
-    const suc = SUCURSALES.find((s) => s.id === id) ?? SUCURSALES[0]
-    setForm((f) => ({
-      ...f,
-      departamento: suc.departamento,
-      municipio:    suc.municipio,
-      direccion:    suc.direccion,
-      referencias:  '',
-    }))
+    const suc = sucursales.find((s) => s.id === id)
+    if (suc) aplicarSucursal(suc)
   }
 
   const handleComprobante = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -408,6 +428,9 @@ export default function CheckoutForm() {
     ? MUNICIPIOS_POR_DEPARTAMENTO[form.departamento] ?? []
     : []
 
+  // Nombre y teléfono bloqueados solo cuando hay dirección guardada seleccionada en modo domicilio
+  const contactoBloqueado = autenticado && tipoEntrega === 'domicilio' && typeof direccionSeleccionada === 'number'
+
   const validar = (): boolean => {
     const e: Partial<FormData> = {}
     if (!form.nombre.trim())   e.nombre   = 'Ingresa tu nombre'
@@ -457,6 +480,8 @@ export default function CheckoutForm() {
         headers,
         body: JSON.stringify({
           ...form,
+          email:        autenticado ? (cuenta?.email ?? form.email) : form.email,
+          tipo_entrega: tipoEntrega,
           items:        items.map((i) => ({ id: i.id, cantidad: i.cantidad })),
           cupon_codigo: cuponAplicado?.codigo ?? undefined,
         }),
@@ -505,29 +530,48 @@ export default function CheckoutForm() {
                 )}
               </div>
 
+              {/* Nombre y teléfono — bloqueados si hay dirección guardada seleccionada */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Campo label="Nombre completo *" error={errores.nombre}>
-                  <input
-                    type="text"
-                    value={form.nombre}
-                    onChange={(e) => set('nombre', e.target.value)}
-                    placeholder="Juan García"
-                    className={input(errores.nombre)}
-                  />
+                <Campo label="Nombre del receptor *" error={!contactoBloqueado ? errores.nombre : undefined}>
+                  {contactoBloqueado ? (
+                    <div className={`${input()} bg-gray-50 text-gray-700 cursor-default select-none`}>
+                      {form.nombre}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.nombre}
+                      onChange={(e) => set('nombre', e.target.value)}
+                      placeholder="Juan García"
+                      className={input(errores.nombre)}
+                    />
+                  )}
                 </Campo>
 
-                <Campo label="Teléfono *" error={errores.telefono}>
-                  <input
-                    type="tel"
-                    value={form.telefono}
-                    onChange={(e) => set('telefono', e.target.value)}
-                    placeholder="5555-1234"
-                    className={input(errores.telefono)}
-                  />
+                <Campo label="Teléfono *" error={!contactoBloqueado ? errores.telefono : undefined}>
+                  {contactoBloqueado ? (
+                    <div className={`${input()} bg-gray-50 text-gray-700 cursor-default select-none`}>
+                      {form.telefono}
+                    </div>
+                  ) : (
+                    <input
+                      type="tel"
+                      value={form.telefono}
+                      onChange={(e) => set('telefono', e.target.value)}
+                      placeholder="5555-1234"
+                      className={input(errores.telefono)}
+                    />
+                  )}
                 </Campo>
               </div>
 
-              {/* Email solo para invitados */}
+              {contactoBloqueado && (
+                <p className="text-xs text-gray-400 -mt-2">
+                  Nombre y teléfono corresponden a la dirección seleccionada. Elige «Usar otra dirección» para cambiarlos.
+                </p>
+              )}
+
+              {/* Correo: solo invitados lo llenan; autenticados lo envían automáticamente */}
               {!autenticado && (
                 <Campo label="Correo electrónico *" error={errores.email}>
                   <input
@@ -589,7 +633,10 @@ export default function CheckoutForm() {
               {tipoEntrega === 'tienda' && (
                 <div className="flex flex-col gap-2 mt-1">
                   <p className="text-sm font-medium text-gray-700">Selecciona la sucursal</p>
-                  {SUCURSALES.map((suc) => (
+                  {sucursales.length === 0 && (
+                    <p className="text-sm text-gray-400 py-2">Cargando sucursales...</p>
+                  )}
+                  {sucursales.map((suc) => (
                     <button
                       key={suc.id}
                       type="button"
@@ -606,8 +653,14 @@ export default function CheckoutForm() {
                           {suc.nombre}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {suc.direccion} — {suc.municipio}, {suc.departamento}
+                          {[suc.direccion, suc.municipio, suc.departamento].filter(Boolean).join(' — ')}
                         </p>
+                        {suc.horario && (
+                          <p className="text-xs text-gray-400 mt-0.5">{suc.horario}</p>
+                        )}
+                        {suc.referencia && (
+                          <p className="text-xs text-gray-400 mt-0.5">{suc.referencia}</p>
+                        )}
                       </div>
                     </button>
                   ))}
@@ -620,8 +673,17 @@ export default function CheckoutForm() {
               <section className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
                 <h2 className="font-bold text-gray-900">Dirección de entrega</h2>
 
-                {/* Selector de direcciones guardadas */}
-                {autenticado && direccionesGuardadas.length > 0 && (
+                {/* Esqueleto de carga (usuario autenticado esperando sus direcciones) */}
+                {autenticado && cargandoDirecciones && (
+                  <div className="flex flex-col gap-2 animate-pulse">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-14 rounded-xl bg-gray-100" />
+                    ))}
+                  </div>
+                )}
+
+                {/* Direcciones guardadas */}
+                {autenticado && !cargandoDirecciones && direccionesGuardadas.length > 0 && (
                   <div className="flex flex-col gap-2">
                     {direccionesGuardadas.map((d) => (
                       <button
@@ -638,7 +700,9 @@ export default function CheckoutForm() {
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-semibold ${direccionSeleccionada === d.id ? 'text-green-700' : 'text-gray-700'}`}>
                             {d.alias ?? d.nombre_receptor}
-                            {d.es_principal && <span className="ml-2 text-xs font-normal text-gray-400">Principal</span>}
+                            {d.es_principal && (
+                              <span className="ml-2 text-xs font-normal text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">Principal</span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5 truncate">
                             {d.direccion} — {d.municipio}, {d.departamento}
@@ -647,7 +711,7 @@ export default function CheckoutForm() {
                       </button>
                     ))}
 
-                    {/* Opción nueva dirección */}
+                    {/* Opción: ingresar otra dirección */}
                     <button
                       type="button"
                       onClick={seleccionarNueva}
@@ -659,14 +723,21 @@ export default function CheckoutForm() {
                     >
                       <Plus className={`w-4 h-4 shrink-0 ${direccionSeleccionada === 'nueva' ? 'text-green-600' : 'text-gray-400'}`} />
                       <span className={`text-sm font-medium ${direccionSeleccionada === 'nueva' ? 'text-green-700' : 'text-gray-500'}`}>
-                        Ingresar otra dirección
+                        Usar otra dirección
                       </span>
                     </button>
                   </div>
                 )}
 
-                {/* Formulario manual (invitados siempre, o si eligió "nueva") */}
-                {(!autenticado || direccionSeleccionada === 'nueva' || direccionesGuardadas.length === 0) && (
+                {/* Sin direcciones guardadas (usuario autenticado) */}
+                {autenticado && !cargandoDirecciones && direccionesGuardadas.length === 0 && (
+                  <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                    No tienes direcciones guardadas. Completa el formulario a continuación y puedes guardarlas desde tu perfil para futuros pedidos.
+                  </p>
+                )}
+
+                {/* Formulario manual: invitados siempre · autenticado sin dirs · o eligió "nueva" */}
+                {(!autenticado || direccionSeleccionada === 'nueva' || (!cargandoDirecciones && direccionesGuardadas.length === 0)) && (
                   <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <Campo label="Departamento *" error={errores.departamento}>
@@ -718,15 +789,6 @@ export default function CheckoutForm() {
                         className={input()}
                       />
                     </Campo>
-                  </div>
-                )}
-
-                {/* Resumen de dirección seleccionada guardada */}
-                {autenticado && direccionSeleccionada !== null && direccionSeleccionada !== 'nueva' && (
-                  <div className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-                    <span className="font-medium text-gray-600">Entrega a: </span>
-                    {form.direccion} — {form.municipio}, {form.departamento}
-                    {form.referencias && ` · ${form.referencias}`}
                   </div>
                 )}
               </section>
