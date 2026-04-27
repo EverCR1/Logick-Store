@@ -1,6 +1,7 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { useState, useEffect } from 'react'
 import { useCuenta } from '@/store/cuenta'
 import { tiendaApi } from '@/lib/api'
@@ -33,10 +34,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     },
   }))
 
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ''
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <VerificadorSesion />
-      {children}
-    </QueryClientProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <QueryClientProvider client={queryClient}>
+        <VerificadorSesion />
+        {children}
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   )
 }

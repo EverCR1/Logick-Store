@@ -107,6 +107,12 @@ export const tiendaApi = {
         body:   JSON.stringify(payload),
       }),
 
+    googleVerify: (code: string) =>
+      request<AuthResponse>('/tienda/auth/google/verify', {
+        method: 'POST',
+        body:   JSON.stringify({ code }),
+      }),
+
     logout: (token: string) =>
       request<{ success: boolean }>('/tienda/auth/logout', {
         method:  'POST',

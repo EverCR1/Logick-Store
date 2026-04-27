@@ -1,11 +1,37 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { tiendaApi } from '@/lib/api'
-import { idFromSlug } from '@/lib/utils'
+import { idFromSlug, toSlug } from '@/lib/utils'
 import DetalleCliente from './DetalleCliente'
+import type { Paginacion } from '@/types/producto'
 
 const BASE        = process.env.NEXT_PUBLIC_SITE_URL  ?? 'https://logickem.com'
 const STORE_NAME  = process.env.NEXT_PUBLIC_STORE_NAME ?? 'Logickem'
+
+export const revalidate = 3600 // revalida cada hora sin necesitar rebuild
+
+export async function generateStaticParams() {
+  try {
+    let page = 1, lastPage = 1
+    const slugs: { slug: string }[] = []
+
+    do {
+      const data = await tiendaApi.productos.listar({ page, per_page: 100 })
+      const meta = data.productos as unknown as Paginacion & { data: typeof data.productos.data }
+
+      for (const p of meta.data ?? []) {
+        slugs.push({ slug: toSlug(p.nombre, p.id) })
+      }
+
+      lastPage = meta.last_page ?? 1
+      page++
+    } while (page <= lastPage)
+
+    return slugs
+  } catch {
+    return []
+  }
+}
 
 interface Props {
   params: Promise<{ slug: string }>
