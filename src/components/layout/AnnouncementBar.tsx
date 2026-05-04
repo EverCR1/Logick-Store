@@ -1,5 +1,7 @@
+import { MINIMO_ENVIO_GRATIS } from '@/lib/config'
+
 export default function AnnouncementBar() {
-  const message = 'Envío gratis en pedidos de Q500 o más'
+  const message = `Envío gratis en pedidos de Q${MINIMO_ENVIO_GRATIS} o más`
   // Repetimos el mensaje para que el scroll sea continuo
   const items = Array(6).fill(message)
 

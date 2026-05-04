@@ -8,12 +8,9 @@ import { useCarrito } from '@/store/carrito'
 import { useCuenta } from '@/store/cuenta'
 import { tiendaApi } from '@/lib/api'
 import { formatPrecio } from '@/lib/utils'
+import { COSTO_ENVIO_BASE, MINIMO_ENVIO_GRATIS, LIMITE_EFECTIVO } from '@/lib/config'
 import { MUNICIPIOS_POR_DEPARTAMENTO } from '@/data/municipios'
 import { useQuery } from '@tanstack/react-query'
-
-const COSTO_ENVIO_BASE    = 35
-const MINIMO_ENVIO_GRATIS = 500
-const LIMITE_EFECTIVO     = 1000
 
 const DEPARTAMENTOS = Object.keys(MUNICIPIOS_POR_DEPARTAMENTO).sort()
 

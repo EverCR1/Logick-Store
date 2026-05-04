@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { COSTO_ENVIO_BASE, MINIMO_ENVIO_GRATIS } from '@/lib/config'
 
 export const metadata: Metadata = {
   title: 'Sobre los envíos',
@@ -75,11 +76,11 @@ export default function EnviosPage() {
       <Section title="Costos de envío">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <InfoCard emoji="📦" title="Envío estándar">
-            El costo de envío es de <strong>Q35.00 fijos</strong> sin importar la cantidad de
+            El costo de envío es de <strong>Q{COSTO_ENVIO_BASE.toFixed(2)} fijos</strong> sin importar la cantidad de
             productos o el destino dentro del país.
           </InfoCard>
           <InfoCard emoji="🎉" title="Envío gratis">
-            En pedidos con un total de <strong>Q500.00 o más</strong>, el envío es completamente
+            En pedidos con un total de <strong>Q{MINIMO_ENVIO_GRATIS.toFixed(2)} o más</strong>, el envío es completamente
             <strong> gratis</strong>. El descuento se aplica automáticamente al confirmar tu compra.
           </InfoCard>
         </div>
